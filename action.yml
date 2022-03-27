@@ -1,0 +1,13 @@
+name: Check PR risk label
+description: Ensure that the PR risk labels are available in the repo, and that exactly one of them is applied to this PR
+branding:
+  icon: code
+  color: gray-dark
+
+runs:
+  using: 'composite'
+  steps:
+    - run: ${{ github.action_path }}/run.rb
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
