@@ -6,7 +6,8 @@ on:
 
 jobs:
   check-risk:
-    runs-on: [self-hosted, zendesk-stable]
+    runs-on: [ubuntu-latest]
     name: Check risk
     steps:
+      - run: apt-get update && apt-get install -y ruby
       - uses: zendesk/check-risk-label@main
