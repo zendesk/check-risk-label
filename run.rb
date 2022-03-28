@@ -16,6 +16,17 @@ RISK_LABELS = {
 
 RISK_LABELS_RE = /\Arisk:(none|low|medium|high)\z/
 
+@errors = 0
+
+def error(message)
+  $stderr.puts("ERROR: #{message}")
+  @errors += 1
+end
+
+def abort_if_errors
+  exit 1 if @errors > 0
+end
+
 def github_api_session
   @session ||= begin
     http = Net::HTTP.new('api.github.com', 443)
@@ -69,15 +80,15 @@ def patch(url, body)
   do_request(Net::HTTP::Patch, url, 200, body)
 end
 
-def ensure_labels_present
+def ensure_labels_present(strict:)
   # https://docs.github.com/en/rest/reference/issues#list-labels-for-a-repository
   # https://docs.github.com/en/rest/reference/issues#create-a-label
   # https://docs.github.com/en/rest/reference/issues#update-a-label
 
-  # TODO: pagination. We've set the max per_page but there still might be more than that.
+  # FIXME: pagination. We've set the max per_page but there still might be more than that.
   labels_in_repo = get("https://api.github.com/repos/#{repo_full_name}/labels?per_page=100")
   if labels_in_repo.count >= 100
-    $stderr.puts "Warning: 100 labels found; there might be more. TODO, pagination"
+    $stderr.puts "Warning: 100 labels found; there might be more. FIXME, pagination"
   end
 
   by_name = labels_in_repo.map { |label| [label.fetch('name'), label] }.to_h
@@ -87,8 +98,9 @@ def ensure_labels_present
 
     if existing.nil?
       body = { name: name, color: color, description: description }
+      # FIXME: race condition here, if we run concurrently on the same repo
       post("https://api.github.com/repos/#{repo_full_name}/labels", body)
-    elsif existing.fetch('color').downcase != color.downcase || existing.fetch('description') != description
+    elsif strict && (existing.fetch('color').downcase != color.downcase || existing.fetch('description') != description)
       body = { new_name: name, color: color, description: description }
       patch(existing.fetch('url'), body)
     end
@@ -112,10 +124,34 @@ def ensure_one_label_applied
   risk_labels_on_pr = labels_on_pr.select { |t| t.match?(RISK_LABELS_RE) }
 
   if risk_labels_on_pr.count != 1
-    $stderr.puts "Please apply exactly one of the risk labels: #{RISK_LABELS.keys.join(', ')}"
-    exit 1
+    error("Please apply exactly one of the risk labels: #{RISK_LABELS.keys.join(', ')}")
   end
 end
 
-ensure_labels_present
-ensure_one_label_applied
+def ensure_template_text_removed(text:, message:)
+  pr_description = event.fetch('pull_request').fetch('body')
+
+  if pr_description.include?(text)
+    error(message)
+  end
+end
+
+ensure_labels_defined = ENV.fetch('ENSURE_LABELS_DEFINED')
+error('ensure_labels_defined must be one of: strict, names-only, false') \
+  unless ['strict', 'names-only', 'false'].include?(ensure_labels_defined)
+
+ensure_pr_is_labelled = ENV.fetch('ENSURE_PR_IS_LABELLED')
+error('ensure_pr_is_labelled must be one of: true, false') \
+  unless ['true', 'false'].include?(ensure_pr_is_labelled)
+
+ensure_template_text_removed_text = ENV.fetch('ENSURE_TEMPLATE_TEXT_REMOVED_TEXT')
+ensure_template_text_removed_message = ENV.fetch('ENSURE_TEMPLATE_TEXT_REMOVED_MESSAGE')
+
+abort_if_errors
+
+ensure_labels_present(strict: ensure_labels_defined == 'strict') unless ensure_labels_defined == 'false'
+ensure_one_label_applied if ensure_pr_is_labelled
+ensure_template_text_removed(text: ensure_template_text_removed_text, message: ensure_template_text_removed_message) \
+  unless ensure_template_text_removed_text == ''
+
+abort_if_errors

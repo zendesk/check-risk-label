@@ -3,11 +3,31 @@ description: Ensure that the PR risk labels are available in the repo, and that 
 branding:
   icon: code
   color: gray-dark
-
+inputs:
+  ensure_labels_defined:
+    description: 'Ensure that the risk labels exist in this repository (strict/names-only/false)'
+    required: false
+    default: 'strict'
+  ensure_pr_is_labelled:
+    description: 'Ensure that the pull request has exactly 1 risk label (true/false)'
+    required: false
+    default: 'true'
+  ensure_template_text_removed_text:
+    description: 'Text to ensure is not present in the pull request description (skipped if empty)'
+    required: false
+  ensure_template_text_removed_message:
+    description: 'Message to use if the ensure_template_text_removed text is found'
+    required: false
+    default: 'The description "Risks" section still seems to be as per template. Please fill it in.'
 runs:
   using: 'composite'
   steps:
     - run: ${{ github.action_path }}/run.rb
       shell: bash
       env:
+        ENSURE_LABELS_DEFINED: ${{ inputs.ensure_labels_defined }}
+        ENSURE_PR_IS_LABELLED: ${{ inputs.ensure_pr_is_labelled }}
+        ENSURE_TEMPLATE_TEXT_REMOVED_TEXT: ${{ inputs.ensure_template_text_removed_text }}
+        ENSURE_TEMPLATE_TEXT_REMOVED_MESSAGE: ${{ inputs.ensure_template_text_removed_message }}
+        # Not used if ensure_labels_defined is 'false'
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
