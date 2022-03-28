@@ -8,6 +8,9 @@ inputs:
     description: 'Ensure that the risk labels exist in this repository (strict/names-only/false)'
     required: false
     default: 'strict'
+  github_token:
+    description: 'GITHUB_TOKEN (not needed if ensure_labels_defined is false)'
+    required: false
   ensure_pr_is_labelled:
     description: 'Ensure that the pull request has exactly 1 risk label (true/false)'
     required: false
@@ -26,8 +29,7 @@ runs:
       shell: bash
       env:
         ENSURE_LABELS_DEFINED: ${{ inputs.ensure_labels_defined }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
         ENSURE_PR_IS_LABELLED: ${{ inputs.ensure_pr_is_labelled }}
         ENSURE_TEMPLATE_TEXT_REMOVED_TEXT: ${{ inputs.ensure_template_text_removed_text }}
         ENSURE_TEMPLATE_TEXT_REMOVED_MESSAGE: ${{ inputs.ensure_template_text_removed_message }}
-        # Not used if ensure_labels_defined is 'false'
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

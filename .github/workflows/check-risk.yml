@@ -11,3 +11,5 @@ jobs:
     steps:
       - run: apt-get update && apt-get install -y ruby
       - uses: zendesk/check-risk-label@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
