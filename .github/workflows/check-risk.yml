@@ -1,0 +1,12 @@
+---
+name: Check risk
+on:
+  pull_request:
+    types: [opened, edited, labeled, unlabeled]
+
+jobs:
+  check-risk:
+    runs-on: [self-hosted, zendesk-stable]
+    name: Check risk
+    steps:
+      - uses: @zendesk/check-risk@main
