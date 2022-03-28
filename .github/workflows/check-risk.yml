@@ -9,7 +9,8 @@ jobs:
     runs-on: [ubuntu-latest]
     name: Check risk
     steps:
-      - run: apt-get update && apt-get install -y ruby
+      - run: ruby -v || true
+      - run: sudo apt-get update && sudo apt-get install -y ruby
       - uses: zendesk/check-risk-label@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
