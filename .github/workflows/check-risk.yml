@@ -9,4 +9,4 @@ jobs:
     runs-on: [self-hosted, zendesk-stable]
     name: Check risk
     steps:
-      - uses: @zendesk/check-risk@main
+      - uses: zendesk/check-risk-label@main
