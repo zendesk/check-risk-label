@@ -2,15 +2,14 @@
 name: Check risk
 on:
   pull_request:
-    types: [opened, edited, labeled, unlabeled]
+    types: [opened, synchronize, edited, labeled, unlabeled]
 
 jobs:
   check-risk:
     runs-on: [ubuntu-latest]
     name: Check risk
     steps:
-      - run: ruby -v || true
-      - run: sudo apt-get update && sudo apt-get install -y ruby
       - uses: zendesk/check-risk-label@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          ensure_template_text_removed_text: 'Please remove this text'
