@@ -29,7 +29,7 @@ def abort_if_errors
 end
 
 def github_api_session
-  @session ||= begin
+  @github_api_session ||= begin
     http = Net::HTTP.new('api.github.com', 443)
     http.use_ssl = true
     http.start
@@ -48,7 +48,7 @@ def do_request(klass, url, expected_status, body = nil)
   uri = URI.parse(url)
   req = klass.new(uri)
 
-  req['Authorization'] = if file = ENV['DEBUG_CREDENTIALS_PATH']
+  req['Authorization'] = if (file = ENV['DEBUG_CREDENTIALS_PATH'])
                            "Basic #{[user_and_password(file)].pack('m0')}"
                          else
                            "Bearer #{ENV.fetch('GITHUB_TOKEN')}"
