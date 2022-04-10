@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 # No specific ruby version; only core dependencies
 # (Using Javascript would fit better with the Github platform:
@@ -8,23 +9,23 @@ require 'net/http'
 require 'json'
 
 RISK_LABELS = {
-  'risk:none'   => [ '999999', 'Asserts that the PR does not change any deployable files' ],
-  'risk:low'    => [ 'fbca04', 'Deployment risk: low' ],
-  'risk:medium' => [ 'ff8000', 'Deployment risk: medium' ],
-  'risk:high'   => [ 'ff0000', 'Deployment risk: high' ],
-}
+  'risk:none' => ['999999', 'Asserts that the PR does not change any deployable files'],
+  'risk:low' => ['fbca04', 'Deployment risk: low'],
+  'risk:medium' => ['ff8000', 'Deployment risk: medium'],
+  'risk:high' => ['ff0000', 'Deployment risk: high']
+}.freeze
 
-RISK_LABELS_RE = /\Arisk:(none|low|medium|high)\z/
+RISK_LABELS_RE = /\Arisk:(none|low|medium|high)\z/.freeze
 
 @errors = 0
 
 def error(message)
-  $stderr.puts("ERROR: #{message}")
+  warn("ERROR: #{message}")
   @errors += 1
 end
 
 def abort_if_errors
-  exit 1 if @errors > 0
+  exit 1 if @errors.positive?
 end
 
 def github_api_session
@@ -47,11 +48,11 @@ def do_request(klass, url, expected_status, body = nil)
   uri = URI.parse(url)
   req = klass.new(uri)
 
-  if file = ENV['DEBUG_CREDENTIALS_PATH']
-    req['Authorization'] = "Basic #{[user_and_password(file)].pack('m0')}"
-  else
-    req['Authorization'] = "Bearer #{ENV.fetch('GITHUB_TOKEN')}"
-  end
+  req['Authorization'] = if file = ENV['DEBUG_CREDENTIALS_PATH']
+                           "Basic #{[user_and_password(file)].pack('m0')}"
+                         else
+                           "Bearer #{ENV.fetch('GITHUB_TOKEN')}"
+                         end
 
   req['Accept'] = 'application/vnd.github.v3+json'
 
@@ -87,11 +88,9 @@ def ensure_labels_present(strict:)
 
   # FIXME: pagination. We've set the max per_page but there still might be more than that.
   labels_in_repo = get("https://api.github.com/repos/#{repo_full_name}/labels?per_page=100")
-  if labels_in_repo.count >= 100
-    $stderr.puts "Warning: 100 labels found; there might be more. FIXME, pagination"
-  end
+  warn 'Warning: 100 labels found; there might be more. FIXME, pagination' if labels_in_repo.count >= 100
 
-  by_name = labels_in_repo.map { |label| [label.fetch('name'), label] }.to_h
+  by_name = labels_in_repo.to_h { |label| [label.fetch('name'), label] }
 
   RISK_LABELS.each do |name, (color, description)|
     existing = by_name[name]
@@ -112,37 +111,31 @@ def repo_full_name
 end
 
 def event
-  @event ||= begin
-    JSON.parse(File.read(ENV.fetch('GITHUB_EVENT_PATH')))
-  end
+  @event ||= JSON.parse(File.read(ENV.fetch('GITHUB_EVENT_PATH')))
 end
 
 def ensure_one_label_applied
   labels_on_pr = event.fetch('pull_request').fetch('labels').map { |label| label.fetch('name') }.sort
   puts "Labels on this PR: #{labels_on_pr.inspect}"
 
-  risk_labels_on_pr = labels_on_pr.select { |t| t.match?(RISK_LABELS_RE) }
+  risk_labels_on_pr = labels_on_pr.grep(RISK_LABELS_RE)
 
-  if risk_labels_on_pr.count != 1
-    error("Please apply exactly one of the risk labels: #{RISK_LABELS.keys.join(', ')}")
-  end
+  error("Please apply exactly one of the risk labels: #{RISK_LABELS.keys.join(', ')}") if risk_labels_on_pr.count != 1
 end
 
 def ensure_template_text_removed(text:, message:)
   pr_description = event.fetch('pull_request').fetch('body')
 
-  if pr_description.include?(text)
-    error(message)
-  end
+  error(message) if pr_description.include?(text)
 end
 
 ensure_labels_defined = ENV.fetch('ENSURE_LABELS_DEFINED')
 error('ensure_labels_defined must be one of: strict, names-only, false') \
-  unless ['strict', 'names-only', 'false'].include?(ensure_labels_defined)
+  unless %w[strict names-only false].include?(ensure_labels_defined)
 
 ensure_pr_is_labelled = ENV.fetch('ENSURE_PR_IS_LABELLED')
 error('ensure_pr_is_labelled must be one of: true, false') \
-  unless ['true', 'false'].include?(ensure_pr_is_labelled)
+  unless %w[true false].include?(ensure_pr_is_labelled)
 
 ensure_template_text_removed_text = ENV.fetch('ENSURE_TEMPLATE_TEXT_REMOVED_TEXT')
 ensure_template_text_removed_message = ENV.fetch('ENSURE_TEMPLATE_TEXT_REMOVED_MESSAGE')
