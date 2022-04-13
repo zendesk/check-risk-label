@@ -18,6 +18,7 @@ inputs:
   ensure_template_text_removed_text:
     description: 'Text to ensure is not present in the pull request description (skipped if empty)'
     required: false
+    default: ''
   ensure_template_text_removed_message:
     description: 'Message to use if the ensure_template_text_removed text is found in the PR description'
     required: false
