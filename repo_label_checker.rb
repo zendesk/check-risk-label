@@ -26,7 +26,9 @@ class RepoLabelChecker
     labels_in_repo = github_client.get("https://api.github.com/repos/#{repo_full_name}/labels?per_page=100")
     warn 'Warning: 100 labels found; there might be more. FIXME, pagination' if labels_in_repo.count >= 100
 
-    by_name = labels_in_repo.to_h { |label| [label.fetch('name'), label] }
+    # rubocop:disable Style/MapToHash - ruby 2.5 compat
+    by_name = labels_in_repo.map { |label| [label.fetch('name'), label] }.to_h
+    # rubocop:enable Style/MapToHash
 
     definitions.each do |name, (color, description)|
       existing = by_name[name]
