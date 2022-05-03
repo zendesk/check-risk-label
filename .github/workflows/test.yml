@@ -6,9 +6,19 @@ jobs:
   test:
     name: rubocop and rspec
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '2.5'
+          - '2.6'
+          - '2.7'
+          - '3.0'
+          - '3.1'
     steps:
       - uses: zendesk/checkout@v2
       - uses: zendesk/setup-ruby@v1.48.0
         with:
+          ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
       - run: bundle exec rubocop && bundle exec rspec -f d
