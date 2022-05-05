@@ -17,7 +17,8 @@ RSpec.describe Runner do
       scenario.call
     ensure
       ENV.clear
-      ENV.merge!(old_env)
+      # Not using ENV.merge! because that's only in 2.7 onwards
+      old_env.each { |k, v| ENV[k] = v }
     end
   end
 
