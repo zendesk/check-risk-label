@@ -49,7 +49,7 @@ class Runner
   def ensure_template_text_removed(text:, message:)
     pr_description = event.fetch('pull_request').fetch('body')
 
-    error(message) if pr_description.include?(text)
+    error(message) if pr_description&.include?(text)
   end
 
   def run

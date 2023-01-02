@@ -113,6 +113,12 @@ RSpec.describe Runner do
       ENV['ENSURE_TEMPLATE_TEXT_REMOVED_TEXT'] = 'foo'
       expect_success
     end
+
+    it 'passes if the event has no body' do
+      ENV['ENSURE_TEMPLATE_TEXT_REMOVED_TEXT'] = 'foo'
+      event['pull_request']['body'] = nil
+      expect_success
+    end
   end
 
   describe 'ENSURE_PR_IS_LABELLED' do
