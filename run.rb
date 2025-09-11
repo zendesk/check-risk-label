@@ -28,8 +28,8 @@ class Runner
   end
 
   def ensure_labels_present(strict:)
-    require_relative './github_client'
-    require_relative './repo_label_checker'
+    require_relative 'github_client'
+    require_relative 'repo_label_checker'
     RepoLabelChecker.new(event, GithubClient.new).run(strict: strict, definitions: RISK_LABELS)
   end
 

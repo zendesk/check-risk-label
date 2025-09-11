@@ -28,7 +28,7 @@ class GithubClient
     uri = URI.parse(url)
     req = klass.new(uri)
 
-    req['Authorization'] = if (file = ENV['DEBUG_CREDENTIALS_PATH'])
+    req['Authorization'] = if (file = ENV.fetch('DEBUG_CREDENTIALS_PATH'))
                              "Basic #{[user_and_password(file)].pack('m0')}"
                            else
                              "Bearer #{ENV.fetch('GITHUB_TOKEN')}"
@@ -42,7 +42,7 @@ class GithubClient
     end
 
     res = github_api_session.request(req)
-    return(res.body && JSON.parse(res.body)) if res.code == expected_status.to_s
+    return res.body && JSON.parse(res.body) if res.code == expected_status.to_s
 
     raise <<~MESSAGE
       #{req.method} #{url} -> HTTP/#{res.http_version} #{res.code} #{res.message} (expected #{expected_status})

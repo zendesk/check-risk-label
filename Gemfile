@@ -3,5 +3,5 @@
 source 'https://rubygems.org'
 
 gem 'rspec', '~> 3.13'
-gem 'rubocop', '~> 1.25'
+gem 'rubocop', '~> 1.80'
 gem 'rubocop-rspec', '~> 2.8'
