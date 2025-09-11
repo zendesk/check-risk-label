@@ -18,7 +18,7 @@ DISCARDS = %w[
 ].freeze
 
 version = ARGV.first
-raise 'Usage: ./make-tag.rb vMAJOR.MINOR.PATCH' unless ARGV.count == 1 && version.match?(/^v(\d+)\.(\d+)\.(\d+)$/)
+raise 'Usage: ./make-tag.rb vMAJOR.MINOR.PATCH' unless ARGV.one? && version.match?(/^v(\d+)\.(\d+)\.(\d+)$/)
 
 _ = `git rev-parse --verify refs/tags/#{version} 2>/dev/null`
 raise 'Tag already exists' if $CHILD_STATUS.success?
