@@ -1,0 +1,17 @@
+version: 2
+
+updates:
+  - package-ecosystem: "bundler"
+    vendor: true
+    directory: "/"
+    labels:
+      - dependencies
+      - ruby
+      - risk:low
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    reviewers:
+      - "zendesk/aster"
+    open-pull-requests-limit: 10
