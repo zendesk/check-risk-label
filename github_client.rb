@@ -28,7 +28,7 @@ class GithubClient
     uri = URI.parse(url)
     req = klass.new(uri)
 
-    req['Authorization'] = if (file = ENV.fetch('DEBUG_CREDENTIALS_PATH'))
+    req['Authorization'] = if (file = ENV.fetch('DEBUG_CREDENTIALS_PATH', nil))
                              "Basic #{[user_and_password(file)].pack('m0')}"
                            else
                              "Bearer #{ENV.fetch('GITHUB_TOKEN')}"
