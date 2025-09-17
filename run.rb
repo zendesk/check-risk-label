@@ -16,7 +16,7 @@ class Runner
     'risk:high' => ['ff0000', 'Deployment risk: high']
   }.freeze
 
-  RISK_LABELS_RE = /\Arisk:(none|low|medium|high)\z/.freeze
+  RISK_LABELS_RE = /\Arisk:(none|low|medium|high)\z/
 
   def error(message)
     warn("ERROR: #{message}")
