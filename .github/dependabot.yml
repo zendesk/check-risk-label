@@ -9,9 +9,7 @@ updates:
       - ruby
       - risk:low
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
+      interval: "monthly"
     reviewers:
-      - "zendesk/aster"
+      - "zendesk/productivity-deploy"
     open-pull-requests-limit: 10
