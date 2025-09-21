@@ -11,5 +11,5 @@ updates:
     schedule:
       interval: "monthly"
     reviewers:
-      - "zendesk/productivity-deploy"
+      - "zendesk/productivity-deploy-platform"
     open-pull-requests-limit: 10
