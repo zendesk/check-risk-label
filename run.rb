@@ -46,6 +46,64 @@ class Runner
     error("Please apply exactly one of the risk labels: #{RISK_LABELS.keys.join(', ')}") if risk_labels_on_pr.count != 1
   end
 
+  def repo_full_name
+    event.fetch('repository').fetch('full_name')
+  end
+
+  def pull_number
+    event.fetch('number')
+  end
+
+  def detect_risk_label
+    labels_on_pr = event.fetch('pull_request').fetch('labels').map { |label| label.fetch('name') }
+    labels_on_pr.grep(RISK_LABELS_RE).first
+  end
+
+  def required_approvals_for(risk_label)
+    case risk_label
+    when 'risk:none'
+      ENV.fetch('MIN_APPROVALS_NONE', '1').to_i
+    when 'risk:low'
+      ENV.fetch('MIN_APPROVALS_LOW', '1').to_i
+    when 'risk:medium'
+      ENV.fetch('MIN_APPROVALS_MEDIUM', '1').to_i
+    when 'risk:high'
+      ENV.fetch('MIN_APPROVALS_HIGH', '2').to_i
+    else
+      0
+    end
+  end
+
+  def count_distinct_approvers_with_latest_state_approved
+    require_relative 'github_client'
+    client = GithubClient.new
+    reviews = client.get("https://api.github.com/repos/#{repo_full_name}/pulls/#{pull_number}/reviews")
+
+    latest_state_by_user = {}
+    reviews.each do |review|
+      user = review.fetch('user')
+      user_id = user && user.fetch('id')
+      state = review.fetch('state')
+      latest_state_by_user[user_id] = state if user_id
+    end
+
+    latest_state_by_user.values.count { |state| state == 'APPROVED' }
+  end
+
+  def enforce_min_approvals_if_enabled
+    enforce = ENV.fetch('ENFORCE_MIN_APPROVALS')
+    return if enforce == 'false'
+
+    risk_label = detect_risk_label
+    return unless risk_label # ensure_one_label_applied will handle errors
+
+    required = required_approvals_for(risk_label)
+    return if required <= 0
+
+    approved_count = count_distinct_approvers_with_latest_state_approved
+    error("Need at least #{required} approvals for #{risk_label}; found #{approved_count}") if approved_count < required
+  end
+
   def ensure_template_text_removed(text:, message:)
     pr_description = event.fetch('pull_request').fetch('body')
 
@@ -63,6 +121,10 @@ class Runner
     error('ensure_pr_is_labelled must be one of: true, false') \
       unless %w[true false].include?(ensure_pr_is_labelled)
 
+    enforce_min_approvals = ENV.fetch('ENFORCE_MIN_APPROVALS')
+    error('enforce_min_approvals must be one of: true, false') \
+      unless %w[true false].include?(enforce_min_approvals)
+
     ensure_template_text_removed_text = ENV.fetch('ENSURE_TEMPLATE_TEXT_REMOVED_TEXT')
     ensure_template_text_removed_message = ENV.fetch('ENSURE_TEMPLATE_TEXT_REMOVED_MESSAGE')
 
@@ -74,6 +136,8 @@ class Runner
       ensure_template_text_removed(text: ensure_template_text_removed_text,
                                    message: ensure_template_text_removed_message)
     end
+
+    enforce_min_approvals_if_enabled
 
     abort_if_errors
   end

@@ -23,6 +23,26 @@ inputs:
     description: 'Message to use if the ensure_template_text_removed text is found in the PR description'
     required: false
     default: 'The description "Risks" section still seems to be as per template. Please fill it in.'
+  enforce_min_approvals:
+    description: 'Enforce minimum approvals based on risk (true/false)'
+    required: false
+    default: 'false'
+  min_approvals_none:
+    description: 'Required approvals for risk:none'
+    required: false
+    default: '1'
+  min_approvals_low:
+    description: 'Required approvals for risk:low'
+    required: false
+    default: '1'
+  min_approvals_medium:
+    description: 'Required approvals for risk:medium'
+    required: false
+    default: '1'
+  min_approvals_high:
+    description: 'Required approvals for risk:high'
+    required: false
+    default: '2'
 runs:
   using: 'composite'
   steps:
@@ -34,3 +54,8 @@ runs:
         ENSURE_PR_IS_LABELLED: ${{ inputs.ensure_pr_is_labelled }}
         ENSURE_TEMPLATE_TEXT_REMOVED_TEXT: ${{ inputs.ensure_template_text_removed_text }}
         ENSURE_TEMPLATE_TEXT_REMOVED_MESSAGE: ${{ inputs.ensure_template_text_removed_message }}
+        ENFORCE_MIN_APPROVALS: ${{ inputs.enforce_min_approvals }}
+        MIN_APPROVALS_NONE: ${{ inputs.min_approvals_none }}
+        MIN_APPROVALS_LOW: ${{ inputs.min_approvals_low }}
+        MIN_APPROVALS_MEDIUM: ${{ inputs.min_approvals_medium }}
+        MIN_APPROVALS_HIGH: ${{ inputs.min_approvals_high }}

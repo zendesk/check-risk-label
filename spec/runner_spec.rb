@@ -28,6 +28,7 @@ RSpec.describe Runner do
     ENV['ENSURE_PR_IS_LABELLED'] = 'true'
     ENV['ENSURE_TEMPLATE_TEXT_REMOVED_TEXT'] = ''
     ENV['ENSURE_TEMPLATE_TEXT_REMOVED_MESSAGE'] = 'Oh no!'
+    ENV['ENFORCE_MIN_APPROVALS'] = 'false'
 
     allow(runner).to receive(:warn) { |text| warnings << text }
     allow(runner).to receive(:event) { event }
@@ -140,6 +141,41 @@ RSpec.describe Runner do
     it 'fails if there are multiple risk labels' do
       event['pull_request']['labels'] = [{ 'name' => 'risk:low' }, { 'name' => 'risk:high' }]
       expect_failure('ERROR: Please apply exactly one of the risk labels: risk:none, risk:low, risk:medium, risk:high')
+    end
+  end
+
+  describe 'ENFORCE_MIN_APPROVALS' do
+    let(:reviews_url) { 'https://api.github.com/repos/zendesk/check-risk-label/pulls/4/reviews' }
+
+    before do
+      ENV['ENSURE_LABELS_DEFINED'] = 'false'
+      ENV['ENSURE_TEMPLATE_TEXT_REMOVED_TEXT'] = ''
+      ENV['ENFORCE_MIN_APPROVALS'] = 'true'
+      ENV['MIN_APPROVALS_NONE'] = '0'
+      ENV['MIN_APPROVALS_LOW'] = '1'
+      ENV['MIN_APPROVALS_MEDIUM'] = '1'
+      ENV['MIN_APPROVALS_HIGH'] = '2'
+    end
+
+    it 'passes when approvals meet requirement for medium' do
+      event['pull_request']['labels'] = [{ 'name' => 'risk:medium' }]
+      allow(GithubClient).to receive(:new) { github_client }
+      expect(github_client).to receive(:get).with(reviews_url).and_return([
+        { 'user' => { 'id' => 1 }, 'state' => 'APPROVED' },
+        { 'user' => { 'id' => 1 }, 'state' => 'COMMENTED' },
+        { 'user' => { 'id' => 2 }, 'state' => 'CHANGES_REQUESTED' }
+      ])
+      expect_success
+    end
+
+    it 'fails when approvals are below requirement for high' do
+      event['pull_request']['labels'] = [{ 'name' => 'risk:high' }]
+      allow(GithubClient).to receive(:new) { github_client }
+      expect(github_client).to receive(:get).with(reviews_url).and_return([
+        { 'user' => { 'id' => 10 }, 'state' => 'APPROVED' },
+        { 'user' => { 'id' => 20 }, 'state' => 'CHANGES_REQUESTED' }
+      ])
+      expect_failure('ERROR: Need at least 2 approvals for risk:high; found 1')
     end
   end
 
