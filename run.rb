@@ -10,6 +10,7 @@ require 'json'
 
 class Runner
   RISK_LABELS = {
+    'risk:none' => ['999999', 'Asserts that the PR does not change any deployable files'],
     'risk:low' => ['fbca04', 'Deployment risk: low'],
     'risk:medium' => ['ff8000', 'Deployment risk: medium'],
     'risk:high' => ['ff0000', 'Deployment risk: high']
