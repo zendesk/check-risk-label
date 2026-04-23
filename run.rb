@@ -7,6 +7,7 @@
 
 require 'net/http'
 require 'json'
+require 'uri'
 
 class Runner
   RISK_LABELS = {
@@ -17,6 +18,9 @@ class Runner
   }.freeze
 
   RISK_LABELS_RE = /\Arisk:(none|low|medium|high)\z/
+  RISK_SECTION_ERROR = 'Please ensure that the PR description contains a ' \
+                       '`### Risks` section with a line starting with one of ' \
+                       'the words `high`, `medium`, `low` or `none`.'
 
   def error(message)
     warn("ERROR: #{message}")
@@ -28,13 +32,68 @@ class Runner
   end
 
   def ensure_labels_present(strict:)
-    require_relative 'github_client'
     require_relative 'repo_label_checker'
-    RepoLabelChecker.new(event, GithubClient.new).run(strict: strict, definitions: RISK_LABELS)
+    RepoLabelChecker.new(event, github_client).run(strict: strict, definitions: RISK_LABELS)
   end
 
   def event
     @event ||= JSON.parse(File.read(ENV.fetch('GITHUB_EVENT_PATH')))
+  end
+
+  def github_client
+    require_relative 'github_client'
+    @github_client ||= GithubClient.new
+  end
+
+  def repo_full_name
+    event.fetch('repository').fetch('full_name')
+  end
+
+  def pr_number
+    event.fetch('number')
+  end
+
+  def issue_labels_url
+    "https://api.github.com/repos/#{repo_full_name}/issues/#{pr_number}/labels"
+  end
+
+  def issue_label_url(label_name)
+    "#{issue_labels_url}/#{URI.encode_www_form_component(label_name)}"
+  end
+
+  def risk_from_pr_body
+    pr_body = event.fetch('pull_request').fetch('body')
+    return nil if pr_body.nil?
+
+    risk_section = pr_body.lines.drop_while { |line| line !~ /^###\s+Risks\b/i }.join
+    return nil if risk_section.empty?
+
+    uncommented_risk_section = risk_section.gsub(/<!--.*?-->/m, '')
+
+    %w[high medium low none].find do |risk|
+      uncommented_risk_section.lines.any? { |line| line.match?(/^\W*#{risk}\b/i) }
+    end
+  end
+
+  def auto_apply_risk_label
+    desired_risk = risk_from_pr_body
+
+    if desired_risk.nil?
+      error(RISK_SECTION_ERROR)
+      return
+    end
+
+    desired_label = "risk:#{desired_risk}"
+    labels_on_pr = event.fetch('pull_request').fetch('labels').map { |label| label.fetch('name') }
+    risk_labels_on_pr = labels_on_pr.grep(RISK_LABELS_RE)
+    stale_risk_labels = risk_labels_on_pr - [desired_label]
+
+    stale_risk_labels.each { |label| github_client.delete(issue_label_url(label)) }
+    github_client.post(issue_labels_url, { labels: [desired_label] }) unless risk_labels_on_pr.include?(desired_label)
+
+    updated_labels = labels_on_pr - stale_risk_labels
+    updated_labels << desired_label unless updated_labels.include?(desired_label)
+    event.fetch('pull_request')['labels'] = updated_labels.map { |label| { 'name' => label } }
   end
 
   def ensure_one_label_applied
@@ -63,13 +122,18 @@ class Runner
     error('ensure_pr_is_labelled must be one of: true, false') \
       unless %w[true false].include?(ensure_pr_is_labelled)
 
+    auto_apply_label = ENV.fetch('AUTO_APPLY_LABEL')
+    error('auto_apply_label must be one of: true, false') \
+      unless %w[true false].include?(auto_apply_label)
+
     ensure_template_text_removed_text = ENV.fetch('ENSURE_TEMPLATE_TEXT_REMOVED_TEXT')
     ensure_template_text_removed_message = ENV.fetch('ENSURE_TEMPLATE_TEXT_REMOVED_MESSAGE')
 
     abort_if_errors
 
     ensure_labels_present(strict: ensure_labels_defined == 'strict') unless ensure_labels_defined == 'false'
-    ensure_one_label_applied if ensure_pr_is_labelled
+    auto_apply_risk_label if auto_apply_label == 'true'
+    ensure_one_label_applied if ensure_pr_is_labelled == 'true'
     unless ensure_template_text_removed_text == ''
       ensure_template_text_removed(text: ensure_template_text_removed_text,
                                    message: ensure_template_text_removed_message)

@@ -11,6 +11,9 @@ A custom Github Action for use on pull requests. The action:
 
 All three are optional. See 'Inputs'.
 
+`auto_apply_label` is also available if you want this action to parse the PR body's `### Risks`
+section and manage the matching `risk:*` label automatically.
+
 ## Inputs
 
 See `inputs` in [action.yml](https://github.com/zendesk/check-risk-label/blob/main/action.yml).
@@ -38,3 +41,12 @@ jobs:
 
 where VERSION is the version you wish you use, e.g. `v1` (or a branch, or a commit hash).
 Check the top of this readme to find the latest release.
+
+To auto-apply the risk label from the PR description:
+
+```yaml
+      - name: Check risk
+        uses: zendesk/check-risk-label@VERSION
+        with:
+          auto_apply_label: 'true'
+```

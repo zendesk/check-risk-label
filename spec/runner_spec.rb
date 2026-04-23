@@ -26,6 +26,7 @@ RSpec.describe Runner do
     ENV['ENSURE_LABELS_DEFINED'] = 'strict'
     ENV['GITHUB_TOKEN'] = 'a-token'
     ENV['ENSURE_PR_IS_LABELLED'] = 'true'
+    ENV['AUTO_APPLY_LABEL'] = 'false'
     ENV['ENSURE_TEMPLATE_TEXT_REMOVED_TEXT'] = ''
     ENV['ENSURE_TEMPLATE_TEXT_REMOVED_MESSAGE'] = 'Oh no!'
 
@@ -66,6 +67,12 @@ RSpec.describe Runner do
     ENV['ENSURE_PR_IS_LABELLED'] = 'well this is awkward'
 
     expect_failure('ERROR: ensure_pr_is_labelled must be one of: true, false')
+  end
+
+  it 'validates AUTO_APPLY_LABEL' do
+    ENV['AUTO_APPLY_LABEL'] = 'well this is awkward'
+
+    expect_failure('ERROR: auto_apply_label must be one of: true, false')
   end
 
   describe 'ENSURE_LABELS_DEFINED' do
@@ -127,6 +134,12 @@ RSpec.describe Runner do
       ENV['ENSURE_TEMPLATE_TEXT_REMOVED_TEXT'] = ''
     end
 
+    it 'respects false' do
+      ENV['ENSURE_PR_IS_LABELLED'] = 'false'
+      event['pull_request']['labels'] = []
+      expect_success
+    end
+
     it 'fails if there are no risk labels' do
       event['pull_request']['labels'] = [{ 'name' => 'risk:not_a_recognised_label' }]
       expect_failure('ERROR: Please apply exactly one of the risk labels: risk:none, risk:low, risk:medium, risk:high')
@@ -140,6 +153,90 @@ RSpec.describe Runner do
     it 'fails if there are multiple risk labels' do
       event['pull_request']['labels'] = [{ 'name' => 'risk:low' }, { 'name' => 'risk:high' }]
       expect_failure('ERROR: Please apply exactly one of the risk labels: risk:none, risk:low, risk:medium, risk:high')
+    end
+  end
+
+  describe 'AUTO_APPLY_LABEL' do
+    before do
+      ENV['ENSURE_LABELS_DEFINED'] = 'false'
+      ENV['ENSURE_PR_IS_LABELLED'] = 'true'
+      ENV['AUTO_APPLY_LABEL'] = 'true'
+      ENV['ENSURE_TEMPLATE_TEXT_REMOVED_TEXT'] = ''
+      event['pull_request']['labels'] = [
+        { 'name' => 'needs-review' },
+        { 'name' => 'risk:low' },
+        { 'name' => 'risk:none' }
+      ]
+    end
+
+    it 'skips if disabled' do
+      ENV['AUTO_APPLY_LABEL'] = 'false'
+      event['pull_request']['labels'] = [{ 'name' => 'risk:none' }]
+      expect(github_client).not_to receive(:delete)
+      expect(github_client).not_to receive(:post)
+      expect_success
+    end
+
+    it 'removes stale risk labels and adds the parsed one' do
+      event['pull_request']['body'] = <<~BODY
+        ### Summary
+        change
+
+        ### Risks
+        medium
+      BODY
+
+      expect(github_client).to receive(:delete).with('https://api.github.com/repos/zendesk/check-risk-label/issues/4/labels/risk%3Alow')
+      expect(github_client).to receive(:delete).with('https://api.github.com/repos/zendesk/check-risk-label/issues/4/labels/risk%3Anone')
+      expect(github_client).to receive(:post).with(
+        'https://api.github.com/repos/zendesk/check-risk-label/issues/4/labels',
+        { labels: ['risk:medium'] }
+      )
+
+      expect_success
+    end
+
+    it 'does not re-add a label that is already correct' do
+      event['pull_request']['body'] = <<~BODY
+        ### Risks
+        high
+      BODY
+      event['pull_request']['labels'] = [{ 'name' => 'risk:high' }, { 'name' => 'risk:low' }]
+
+      expect(github_client).to receive(:delete).with('https://api.github.com/repos/zendesk/check-risk-label/issues/4/labels/risk%3Alow')
+      expect(github_client).not_to receive(:post)
+
+      expect_success
+    end
+
+    it 'ignores commented-out risk lines' do
+      event['pull_request']['body'] = <<~BODY
+        ### Risks
+        <!--
+        high
+        -->
+        low
+      BODY
+      event['pull_request']['labels'] = []
+
+      expect(github_client).to receive(:post).with(
+        'https://api.github.com/repos/zendesk/check-risk-label/issues/4/labels',
+        { labels: ['risk:low'] }
+      )
+
+      expect_success
+    end
+
+    it 'fails if the PR body does not contain a parseable risk section' do
+      event['pull_request']['body'] = 'No risk heading here'
+
+      expect(github_client).not_to receive(:delete)
+      expect(github_client).not_to receive(:post)
+
+      expect_failure(
+        "ERROR: #{Runner::RISK_SECTION_ERROR}",
+        'ERROR: Please apply exactly one of the risk labels: risk:none, risk:low, risk:medium, risk:high'
+      )
     end
   end
 

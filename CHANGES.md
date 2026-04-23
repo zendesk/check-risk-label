@@ -1,4 +1,7 @@
 # check-risk-label
+## v2.0.3
+* Add an `auto_apply_label` flag to parse the PR `### Risks` section and apply the matching `risk:*` label
+
 ## v2.0.2
 * Upgrade Ruby version of the action to v3.4
 
@@ -27,4 +30,3 @@
 ## v0.1.0 = v0.1
 
  * First release
-

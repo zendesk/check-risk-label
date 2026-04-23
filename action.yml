@@ -15,6 +15,10 @@ inputs:
     description: 'Ensure that the pull request has exactly 1 risk label (true/false)'
     required: false
     default: 'true'
+  auto_apply_label:
+    description: 'Parse the PR `### Risks` section and automatically apply the matching risk label (true/false)'
+    required: false
+    default: 'false'
   ensure_template_text_removed_text:
     description: 'Text to ensure is not present in the pull request description (skipped if empty)'
     required: false
@@ -32,5 +36,6 @@ runs:
         ENSURE_LABELS_DEFINED: ${{ inputs.ensure_labels_defined }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
         ENSURE_PR_IS_LABELLED: ${{ inputs.ensure_pr_is_labelled }}
+        AUTO_APPLY_LABEL: ${{ inputs.auto_apply_label }}
         ENSURE_TEMPLATE_TEXT_REMOVED_TEXT: ${{ inputs.ensure_template_text_removed_text }}
         ENSURE_TEMPLATE_TEXT_REMOVED_MESSAGE: ${{ inputs.ensure_template_text_removed_message }}
