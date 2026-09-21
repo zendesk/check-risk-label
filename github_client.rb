@@ -42,7 +42,10 @@ class GithubClient
     end
 
     res = github_api_session.request(req)
-    return res.body && JSON.parse(res.body) if res.code == expected_status.to_s
+    if expected_status.to_s.include?(res.code)
+      yield res if block_given?
+      return res.body && JSON.parse(res.body)
+    end
 
     raise <<~MESSAGE
       #{req.method} #{url} -> HTTP/#{res.http_version} #{res.code} #{res.message} (expected #{expected_status})
@@ -53,8 +56,21 @@ class GithubClient
     do_request(Net::HTTP::Get, url, 200)
   end
 
+  def get_paginated(url)
+    data = []
+
+    while url
+      page = do_request(Net::HTTP::Get, url, 200) do |response|
+        url = response['Link'].to_s[/(?<=<)(\S*)(?=>; rel="next")/i, 1]
+      end
+      data.concat(page)
+    end
+
+    data
+  end
+
   def post(url, body)
-    do_request(Net::HTTP::Post, url, 201, body)
+    do_request(Net::HTTP::Post, url, [200, 201], body)
   end
 
   def patch(url, body)

@@ -9,7 +9,7 @@ inputs:
     required: false
     default: 'strict'
   github_token:
-    description: 'GITHUB_TOKEN (not needed if ensure_labels_defined is false)'
+    description: 'GITHUB_TOKEN (not needed if ensure_labels_defined and ensure_pr_is_labelled are false)'
     required: false
   ensure_pr_is_labelled:
     description: 'Ensure that the pull request has exactly 1 risk label (true/false)'
