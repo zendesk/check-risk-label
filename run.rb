@@ -43,13 +43,75 @@ class Runner
 
     risk_labels_on_pr = labels_on_pr.grep(RISK_LABELS_RE)
 
-    error("Please apply exactly one of the risk labels: #{RISK_LABELS.keys.join(', ')}") if risk_labels_on_pr.count != 1
+    error("Please apply exactly one of the risk labels: #{RISK_LABELS.keys.join(', ')}") if risk_labels_on_pr.count > 1
+
+    try_auto_add_label if risk_labels_on_pr.empty?
   end
 
   def ensure_template_text_removed(text:, message:)
     pr_description = event.fetch('pull_request').fetch('body')
 
     error(message) if pr_description&.include?(text)
+  end
+
+  def find_labels_in_description(description)
+    labels = []
+    if description.downcase.include?('## risks') || description.downcase.include?('## deploy risks')
+      risk_section = description.split('#').select do |body|
+        body.downcase.strip.start_with?('risk') || body.downcase.strip.start_with?('deploy risks')
+      end
+      risk_section_labels = %w[none low medium high].select do |label|
+        risk_section.any? do |section|
+          section.downcase.include?(label)
+        end
+      end
+      labels << risk_section_labels.map { |label| "risk:#{label}" }
+    end
+    labels.flatten!
+  end
+
+  def remove_comments_from_description(description)
+    sanitized = description
+    previous = nil
+    while sanitized != previous
+      previous = sanitized
+      sanitized = sanitized.gsub(/<!--.*?-->/m, '')
+    end
+    sanitized
+  end
+
+  def try_auto_add_label
+    require_relative 'github_client'
+    github_client = GithubClient.new
+
+    description = event.fetch('pull_request').fetch('body')
+    visible_description = remove_comments_from_description(description)
+    risk_labels_in_description = find_labels_in_description(visible_description)
+
+    puts "Risk labels found in description: #{risk_labels_in_description.inspect}"
+
+    add_label_to_pr(risk_labels_in_description.first) if risk_labels_in_description&.one?
+
+    commits = github_client.get(event.fetch('pull_request').fetch('commits_url'))
+    risk_labels_in_commits = commits&.flat_map do |commit|
+      RISK_LABELS.keys.select { |label| commit.fetch('commit').fetch('message')&.include?(label) }
+    end&.uniq
+
+    puts "Risk labels found in commits: #{risk_labels_in_commits.inspect}"
+
+    add_label_to_pr(risk_labels_in_commits.first) if risk_labels_in_commits&.one?
+
+    return unless ((risk_labels_in_description || []) + (risk_labels_in_commits || [])).count != 1
+
+    error("Please apply exactly one of the risk labels: #{RISK_LABELS.keys.join(', ')}")
+  end
+
+  def add_label_to_pr(label)
+    require_relative 'github_client'
+    github_client = GithubClient.new
+
+    github_client.post(event.fetch('pull_request').fetch('_links').fetch('issue').fetch('href'),
+                       { 'labels' => [label] })
   end
 
   def run

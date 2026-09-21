@@ -54,7 +54,7 @@ class GithubClient
   end
 
   def post(url, body)
-    do_request(Net::HTTP::Post, url, 201, body)
+    do_request(Net::HTTP::Post, url, 200, body)
   end
 
   def patch(url, body)
