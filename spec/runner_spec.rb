@@ -3,6 +3,7 @@
 require 'English'
 require_relative '../repo_label_checker'
 require_relative '../run'
+require_relative '../github_client'
 
 RSpec.describe Runner do
   let(:event) { JSON.parse(File.read(File.join(File.dirname(__FILE__), 'sample_event.json'))) }
@@ -33,6 +34,7 @@ RSpec.describe Runner do
     allow(runner).to receive(:event) { event }
     allow(GithubClient).to receive(:new) { github_client }
     allow(RepoLabelChecker).to receive(:new).with(event, github_client) { repo_label_checker }
+    allow(github_client).to receive(:get)
   end
 
   def expect_failure(*expected_warnings)
@@ -140,6 +142,28 @@ RSpec.describe Runner do
     it 'fails if there are multiple risk labels' do
       event['pull_request']['labels'] = [{ 'name' => 'risk:low' }, { 'name' => 'risk:high' }]
       expect_failure('ERROR: Please apply exactly one of the risk labels: risk:none, risk:low, risk:medium, risk:high')
+    end
+
+    it 'adds a risk label from the description if exactly one is present' do
+      event['pull_request']['labels'] = []
+      event['pull_request']['body'] = "### Risks: \n - Low"
+
+      allow(github_client).to receive(:post)
+      expect_success
+    end
+
+    it 'adds a risk label from the commits if exactly one is present' do
+      event['pull_request']['labels'] = []
+      event['pull_request']['body'] = ''
+      event['pull_request']['commits_url'] = 'https://api.github.com/repos/owner/repo/commits'
+
+      allow(github_client)
+        .to receive(:get)
+        .with('https://api.github.com/repos/owner/repo/commits')
+        .and_return([{ 'commit' => { 'message' => 'This commit has risk:high' } }])
+
+      expect(runner).to receive(:add_label_to_pr).with('risk:high')
+      expect_success
     end
   end
 
