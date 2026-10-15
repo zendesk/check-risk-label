@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, edited, labeled, unlabeled]
 
+permissions:
+  contents: read
+  pull-requests: write # create/update risk labels (ensure_labels_defined: strict)
+
 jobs:
   check-risk:
     runs-on: [ubuntu-latest]
